@@ -78,7 +78,8 @@ struct sugov_cpu {
 	u64 last_update;
 
 	/* The fields below are only needed when sharing a policy. */
-	unsigned long util;
+	unsigned long util_cfs;
+	unsigned long util_dl;
 	unsigned long max;
 	unsigned int flags;
 	unsigned int cpu;
@@ -247,23 +248,27 @@ static unsigned int get_next_freq(struct sugov_policy *sg_policy,
 	return cpufreq_driver_resolve_freq(policy, freq);
 }
 
-static void sugov_get_util(unsigned long *util, unsigned long *max, int cpu,
-			   u64 time)
+static void sugov_get_util(struct sugov_cpu *sg_cpu)
 {
-	struct rq *rq = cpu_rq(cpu);
-	unsigned long util_cfs = cpu_util_cfs(rq);
-	unsigned long util_dl  = cpu_util_dl(rq);
+	struct rq *rq = cpu_rq(sg_cpu->cpu);
 
-	*max = arch_scale_cpu_capacity(NULL, cpu);
-
-	*util = boosted_cpu_util(cpu, &loadcpu->walt_load);
+	sg_cpu->max = arch_scale_cpu_capacity(NULL, sg_cpu->cpu);
+	sg_cpu->util_cfs = cpu_util_cfs(rq);
+	sg_cpu->util_dl  = cpu_util_dl(rq);
 	
 #ifdef CONFIG_UCLAMP_TASK
 	*util = uclamp_util_with(rq, *util, NULL);
 	*util = min(*max, *util);
 #endif
 
-	*util = min(util_cfs + util_dl, *max);
+static unsigned long sugov_aggregate_util(struct sugov_cpu *sg_cpu)
+{
+	/*
+	 * Ideally we would like to set util_dl as min/guaranteed freq and
+	 * util_cfs + util_dl as requested freq. However, cpufreq is not yet
+	 * ready for such an interface. So, we only do the latter for now.
+	 */
+	return min(sg_cpu->util_cfs + sg_cpu->util_dl, sg_cpu->max);
 }
 
 static void sugov_set_iowait_boost(struct sugov_cpu *sg_cpu, u64 time,
@@ -459,7 +464,9 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 		sg_policy->cached_raw_freq = 0;
 		next_f = policy->cpuinfo.max_freq;
 	} else {
-		sugov_get_util(&util, &max, sg_cpu->cpu, time);
+		sugov_get_util(sg_cpu);
+		max = sg_cpu->max;
+		util = sugov_aggregate_util(sg_cpu);
 		if (sg_policy->max != max) {
 			sg_policy->max = max;
 			hs_util = freq_to_util(sg_policy,
@@ -477,6 +484,7 @@ static void sugov_update_single(struct update_util_data *hook, u64 time,
 					sg_policy->avg_cap,
 					max, sg_cpu->walt_load.nl,
 					sg_cpu->walt_load.pl, flags);
+
 		sugov_iowait_boost(sg_cpu, &util, &max);
 		sugov_walt_adjust(sg_cpu, &util, &max);
 		next_f = get_next_freq(sg_policy, util, max);
@@ -527,9 +535,9 @@ static unsigned int sugov_next_freq_shared(struct sugov_cpu *sg_cpu, u64 time)
 			return policy->cpuinfo.max_freq;
 		}
 
-		j_util = j_sg_cpu->util;
 		j_max = j_sg_cpu->max;
-		if (j_util * max >= j_max * util) {
+		j_util = sugov_aggregate_util(j_sg_cpu);
+		if (j_util * max > j_max * util) {
 			util = j_util;
 			max = j_max;
 		}
@@ -552,8 +560,6 @@ static void sugov_update_shared(struct update_util_data *hook, u64 time,
 	if (!sg_policy->tunables->pl && flags & SCHED_CPUFREQ_PL)
 		return;
 
-	sugov_get_util(&util, &max, sg_cpu->cpu, time);
-
 	flags &= ~SCHED_CPUFREQ_RT;
 
 	raw_spin_lock(&sg_policy->update_lock);
@@ -566,8 +572,7 @@ static void sugov_update_shared(struct update_util_data *hook, u64 time,
 		sg_policy->hispeed_util = hs_util;
 	}
 
-	sg_cpu->util = util;
-	sg_cpu->max = max;
+	sugov_get_util(sg_cpu);
 	sg_cpu->flags = flags;
 
 	sugov_set_iowait_boost(sg_cpu, time, flags);
