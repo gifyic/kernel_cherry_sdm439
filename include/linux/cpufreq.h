@@ -615,7 +615,7 @@ extern struct cpufreq_governor cpufreq_gov_schedutil;
 #define CPUFREQ_DEFAULT_GOVERNOR	(&cpufreq_gov_schedutil)
 #endif
 
-static inline bool cpufreq_can_do_remote_dvfs(struct cpufreq_policy *policy)
+static inline bool cpufreq_this_cpu_can_update(struct cpufreq_policy *policy)
 {
 	/*
 	 * Allow remote callbacks if:
