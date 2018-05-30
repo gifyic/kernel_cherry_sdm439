@@ -36,6 +36,9 @@ static s64 last_get_time;
 static DEFINE_PER_CPU(atomic64_t, last_busy_time) = ATOMIC64_INIT(0);
 
 #define DIV64_U64_ROUNDUP(X, Y) div64_u64((X) + (Y - 1), Y)
+
+#define NR_THRESHOLD_PCT		15
+
 /**
  * sched_get_nr_running_avg
  * @return: Average nr_running, iowait and nr_big_tasks value since last poll.
@@ -79,6 +82,20 @@ void sched_get_nr_running_avg(int *avg, int *iowait_avg, int *big_avg,
 
 		tmp_iowait += per_cpu(iowait_prod_sum, cpu);
 		tmp_iowait +=  nr_iowait_cpu(cpu) * diff;
+
+		/*
+		 * NR_THRESHOLD_PCT is to make sure that the task ran
+		 * at least 85% in the last window to compensate any
+		 * over estimating being done.
+		 */
+		stats[cpu].nr = (int)div64_u64((tmp_nr + NR_THRESHOLD_PCT),
+								100);
+		stats[cpu].nr_misfit = (int)div64_u64((tmp_misfit +
+						NR_THRESHOLD_PCT), 100);
+		stats[cpu].nr_max = per_cpu(nr_max, cpu);
+
+		trace_sched_get_nr_running_avg(cpu, stats[cpu].nr,
+				stats[cpu].nr_misfit, stats[cpu].nr_max);
 
 		per_cpu(last_time, cpu) = curr_time;
 
