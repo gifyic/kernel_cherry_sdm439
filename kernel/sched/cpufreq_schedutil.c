@@ -80,6 +80,7 @@ struct sugov_cpu {
 	/* The fields below are only needed when sharing a policy. */
 	unsigned long util_cfs;
 	unsigned long util_dl;
+	unsigned long util_rt;
 	unsigned long max;
 	unsigned int flags;
 	unsigned int cpu;
@@ -260,15 +261,23 @@ static void sugov_get_util(struct sugov_cpu *sg_cpu)
 	*util = uclamp_util_with(rq, *util, NULL);
 	*util = min(*max, *util);
 #endif
+	sg_cpu->util_rt  = cpu_util_rt(rq);
+}
 
 static unsigned long sugov_aggregate_util(struct sugov_cpu *sg_cpu)
 {
+	unsigned long util;
+
+	util = sg_cpu->util_dl;
+	util += sg_cpu->util_cfs;
+	util += sg_cpu->util_rt;
+
 	/*
 	 * Ideally we would like to set util_dl as min/guaranteed freq and
 	 * util_cfs + util_dl as requested freq. However, cpufreq is not yet
 	 * ready for such an interface. So, we only do the latter for now.
 	 */
-	return min(sg_cpu->util_cfs + sg_cpu->util_dl, sg_cpu->max);
+	return min(sg_cpu->max, util);
 }
 
 static void sugov_set_iowait_boost(struct sugov_cpu *sg_cpu, u64 time,
