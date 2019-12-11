@@ -122,8 +122,16 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 	 * Hence stop here for remote requests if they aren't supported
 	 * by the hardware, as calculating the frequency is pointless if
 	 * we cannot in fact act on it.
+<<<<<<< HEAD
 	 */
 	if (!cpufreq_can_do_remote_dvfs(sg_policy->policy))
+=======
+	 *
+	 * This is needed on the slow switching platforms too to prevent CPUs
+	 * going offline from leaving stale IRQ work items behind.
+	 */
+	if (!cpufreq_this_cpu_can_update(sg_policy->policy))
+>>>>>>> 204d178b6ec... cpufreq: Avoid leaving stale IRQ work items during CPU offline
 		return false;
 
 	if (unlikely(sg_policy->limits_changed)) {
