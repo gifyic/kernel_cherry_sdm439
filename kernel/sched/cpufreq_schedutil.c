@@ -122,16 +122,11 @@ static bool sugov_should_update_freq(struct sugov_policy *sg_policy, u64 time)
 	 * Hence stop here for remote requests if they aren't supported
 	 * by the hardware, as calculating the frequency is pointless if
 	 * we cannot in fact act on it.
-<<<<<<< HEAD
-	 */
-	if (!cpufreq_can_do_remote_dvfs(sg_policy->policy))
-=======
 	 *
 	 * This is needed on the slow switching platforms too to prevent CPUs
 	 * going offline from leaving stale IRQ work items behind.
 	 */
 	if (!cpufreq_this_cpu_can_update(sg_policy->policy))
->>>>>>> 204d178b6ec... cpufreq: Avoid leaving stale IRQ work items during CPU offline
 		return false;
 
 	if (unlikely(sg_policy->limits_changed)) {
@@ -199,7 +194,7 @@ static void sugov_update_commit(struct sugov_policy *sg_policy, u64 time,
 		policy->cur = next_freq;
 		trace_cpu_frequency(next_freq, smp_processor_id());
 	} else if (!sg_policy->work_in_progress) {
-		if (use_pelt())
+		if (likely(use_pelt()))
 			sg_policy->work_in_progress = true;
 		sched_irq_work_queue(&sg_policy->irq_work);
 	}
@@ -612,7 +607,7 @@ static void sugov_work(struct kthread_work *work)
 	raw_spin_lock_irqsave(&sg_policy->update_lock, flags);
 	freq = sg_policy->next_freq;
 
-	if (use_pelt())
+	if (likely(use_pelt()))
 		sg_policy->work_in_progress = false;
 	
 	raw_spin_unlock_irqrestore(&sg_policy->update_lock, flags);
