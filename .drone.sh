@@ -12,7 +12,14 @@ PATH="$(pwd)/proton-clang-master/bin:${PATH}"
 make -j$(nproc --all) O=out ARCH=arm64 \
                       CC=clang \
                       CROSS_COMPILE=aarch64-linux-gnu- \
-                      CROSS_COMPILE_ARM32=arm-linux-gnueabi-
+                      CROSS_COMPILE_ARM32=arm-linux-gnueabi- \
+                      AR=llvm-ar \
+                      AS=llvm-as \
+                      NM=llvm-nm \
+                      OBJCOPY=llvm-objcopy \
+                      OBJDUMP=llvm-objdump \
+                      STRIP=llvm-strip \
+                      LD=ld.lld
 
 # Sign Prima module
 aarch64-linux-gnu-strip --strip-unneeded --strip-debug out/drivers/staging/prima/wlan.ko
