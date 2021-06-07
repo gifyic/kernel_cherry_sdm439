@@ -333,6 +333,24 @@ config REMOVE_INPUT_BOOST_FREQ_PERF
 	  this frequency will be used.
 endif
 
+config CPU_FREQ_DEFAULT_LITTLE_MAX
+	int "Default maximum frequency for the little cluster"
+	default 0
+	help
+	  This sets the default maximum frequency (in kHz) for the little CPU
+	  cluster.
+
+	  If in doubt, say 0 to use the hardware's minimum frequency.
+
+config CPU_FREQ_DEFAULT_BIG_MAX
+	int "Default maximum frequency for the big cluster"
+	default 0
+	help
+	  This sets the default maximum frequency (in kHz) for the maximum CPU
+	  cluster.
+
+	  If in doubt, say 0 to use the hardware's minimum frequency.
+
 comment "CPU frequency scaling drivers"
 
 config CPUFREQ_DT

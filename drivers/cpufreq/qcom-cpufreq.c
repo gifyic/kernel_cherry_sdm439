@@ -166,8 +166,36 @@ static int msm_cpufreq_init(struct cpufreq_policy *policy)
 	ret = cpufreq_table_validate_and_show(policy, table);
 	if (ret) {
 		pr_err("cpufreq: failed to get policy min/max\n");
-		return ret;
+#if defined (CONFIG_CPU_FREQ_DEFAULT_LITTLE_MAX) && defined (CONFIG_CPU_FREQ_DEFAULT_BIG_MAX)
+		/*
+		 * Define default CPU frequency rules
+		*/		
+		//ARM LITTLE
+		if (policy->cpu <= 1)
+	 	{
+	 		policy->cpuinfo.max_freq = CONFIG_CPU_FREQ_DEFAULT_LITTLE_MAX;
+	 	}
+		//ARM big
+		else
+	 	{
+	 		policy->cpuinfo.max_freq = CONFIG_CPU_FREQ_DEFAULT_BIG_MAX;
+		}
 	}
+
+	//Set default frequencies
+ 	//ARM LITTLE
+	if (policy->cpu <= 1)
+	{
+	 	policy->max = CONFIG_CPU_FREQ_DEFAULT_LITTLE_MAX;
+	}
+	//ARM big
+	else
+	{
+ 		policy->max = CONFIG_CPU_FREQ_DEFAULT_BIG_MAX;
+	}
+#else
+	return ret;
+#endif
 
 	cur_freq = clk_get_rate(cpu_clk[policy->cpu])/1000;
 
