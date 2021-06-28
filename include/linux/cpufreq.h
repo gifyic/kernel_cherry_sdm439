@@ -622,8 +622,7 @@ static inline bool cpufreq_this_cpu_can_update(struct cpufreq_policy *policy)
 	 * - dvfs_possible_from_any_cpu flag is set
 	 * - the local and remote CPUs share cpufreq policy
 	 */
-	return policy->dvfs_possible_from_any_cpu ||
-		cpumask_test_cpu(smp_processor_id(), policy->cpus);
+	return cpumask_test_cpu(smp_processor_id(), policy->cpus);
 }
 
 /*********************************************************************
